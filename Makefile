@@ -1,7 +1,7 @@
-BUILD_DIR := build
-DEVICE := xc3s500e-4-fg320
+BUILD_DIR = build
+DEVICE = xc3s500e-4-fg320
 
-all: $(BUILD_DIR)/counter.bin
+all: $(BUILD_DIR)/counter.bit
 
 $(BUILD_DIR):
 	mkdir -p $@

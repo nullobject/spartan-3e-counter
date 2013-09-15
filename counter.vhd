@@ -1,39 +1,77 @@
 library ieee;
+
 use ieee.std_logic_1164.all;
 use ieee.std_logic_arith.all;
 use ieee.std_logic_unsigned.all;
 
 entity counter is
   port (
-    clk: in std_logic;
-    leds: out std_logic_vector(7 downto 0)
+    clock    : in std_logic;
+    rotary_a : in std_logic;
+    rotary_b : in std_logic;
+    rotary_c : in std_logic;
+    leds     : out std_logic_vector(7 downto 0)
   );
 end counter;
 
 architecture counter_arch of counter is
-  signal temp_count: std_logic_vector(7 downto 0) := x"00";
-  signal slow_clk: std_logic;
-  -- Clock divider can be changed to suit application.
-  -- Clock (clk) is normally 50 MHz, so each clock cycle
-  -- is 20 ns. A clock divider of 'n' bits will make 1
-  -- slow_clk cycle equal 2^n clk cycles.
-  signal clk_divider: std_logic_vector(15 downto 0) := x"0000";
+  signal count : std_logic_vector(7 downto 0) := x"00";
+  signal rotary_q1 : std_logic;
+  signal rotary_q2 : std_logic;
+  signal rotary_in : std_logic_vector(1 downto 0);
+  signal rotary_event : std_logic;
+  signal rotary_dir : std_logic;
+  signal delay_rotary_q1 : std_logic;
 begin
-  -- Process that makes slow clock go high only when MSB of -- clk_divider goes high.
-  division: process (clk, clk_divider)
+  rotary_filter: process(clock)
   begin
-    if clk'event and clk = '1' then
-      clk_divider <= clk_divider + 1;
-    end if;
-    slow_clk <= clk_divider(15);
-  end process;
+    if clock'event and clock = '1' then
+      rotary_in <= rotary_b & rotary_a;
 
-  counting: process(slow_clk, temp_count)
+      case rotary_in is
+      when "11" =>
+        rotary_q1 <= '1';
+        rotary_q2 <= rotary_q2;
+      when "01" =>
+        rotary_q1 <= rotary_q1;
+        rotary_q2 <= '0';
+      when "10" =>
+        rotary_q1 <= rotary_q1;
+        rotary_q2 <= '1';
+      when others =>
+        rotary_q1 <= '0';
+        rotary_q2 <= rotary_q2;
+      end case;
+    end if;
+  end process rotary_filter;
+
+  direction: process(clock)
   begin
-    if slow_clk'event and slow_clk = '1' then
-      temp_count <= temp_count + 1;
-    end if;
+    if clock'event and clock = '1' then
+      delay_rotary_q1 <= rotary_q1;
 
-    leds <= temp_count;
+      if rotary_q1 = '1' and delay_rotary_q1 = '0' then
+        rotary_event <= '1';
+        rotary_dir <= rotary_q2;
+      else
+        rotary_event <= '0';
+        rotary_dir <= rotary_dir;
+      end if;
+    end if;
+  end process direction;
+
+  led_counter: process(clock)
+  begin
+    if clock'event and clock = '1' then
+      if rotary_c = '1' then
+        count <= x"00";
+      elsif rotary_event = '1' and rotary_dir = '0' then
+        count <= count - 1;
+      elsif rotary_event = '1' and rotary_dir = '1' then
+        count <= count + 1;
+      end if;
+
+      leds <= count;
+    end if;
   end process;
 end counter_arch;
